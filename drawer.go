@@ -10,6 +10,8 @@ import (
 	"io/ioutil"
 	"os"
 
+	"golang.org/x/image/math/fixed"
+
 	"github.com/golang/freetype"
 	"github.com/golang/freetype/truetype"
 	"golang.org/x/image/font"
@@ -19,6 +21,7 @@ import (
 // Drawer is the main interface for this package
 type Drawer interface {
 	Draw(string) (*image.RGBA, error)
+	DrawMultiline(text []string) (*image.RGBA, error)
 	SetColors(color.RGBA, color.RGBA)
 	SetFontPath(string) error
 	SetFontSize(float64)
@@ -117,6 +120,52 @@ func (d *drawer) Draw(text string) (img *image.RGBA, err error) {
 	// 	Dot:  point,
 	// }
 	// fd.DrawString(text)
+	return
+}
+
+// Draw returns the image of a text
+func (d *drawer) DrawMultiline(text []string) (img *image.RGBA, err error) {
+	if d.BackgroundImage != nil {
+		imgRect := image.Rectangle{image.Pt(0, 0), d.BackgroundImage.Bounds().Size()}
+		img = image.NewRGBA(imgRect)
+		draw.Draw(img, img.Bounds(), d.BackgroundImage, image.ZP, draw.Src)
+	} else {
+		img = image.NewRGBA(image.Rect(0, 0, d.Width, d.Height))
+		draw.Draw(img, img.Bounds(), d.BackgroundColor, image.ZP, draw.Src)
+	}
+	if d.autoFontSize {
+		err = errors.New("DrawMultiline unsupports autoFontsize")
+		return
+		//d.FontSize = d.calcFontSize(text[0])
+	}
+
+	if d.Font != nil {
+		c := freetype.NewContext()
+		c.SetDPI(72)
+		c.SetFont(d.Font)
+		c.SetFontSize(d.FontSize)
+		c.SetClip(img.Bounds())
+		c.SetDst(img)
+		c.SetSrc(d.TextColor)
+		c.SetHinting(font.HintingNone)
+
+		// justify to center height
+		size := d.FontSize
+		spacing := 1.5
+		textAreaHeight := d.calcTextsHeight(size, text, c)
+		textMarginH := (d.Height - textAreaHeight) / 2
+		pt := freetype.Pt(0, textMarginH)
+
+		for _, s := range text {
+			textWidth := d.calcTextWidth(d.FontSize, s)
+			x := (d.Width-textWidth)/2 + d.TextPosHorizontal
+			pt.X = fixed.Int26_6(x << 6)
+			_, err = c.DrawString(s, pt)
+			pt.Y += c.PointToFixed(size * spacing)
+		}
+		return
+	}
+	err = errors.New("Font must be specified")
 	return
 }
 
@@ -222,5 +271,11 @@ func (d *drawer) calcTextWidth(fontSize float64, text string) (textWidth int) {
 		}
 		textWidth += int(float64(awidth) / 64)
 	}
+	return
+}
+
+func (d *drawer) calcTextsHeight(fontSize float64, text []string, c *freetype.Context) (textHeight int) {
+	lineHeight := int(c.PointToFixed(d.FontSize) >> 6)
+	textHeight = lineHeight * len(text)
 	return
 }
