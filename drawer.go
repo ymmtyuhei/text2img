@@ -30,16 +30,20 @@ type Drawer interface {
 }
 
 // Params is parameters for NewDrawer function
+//
+// FontSize
+// FontSize is the font size in points, as in "a 10 point font size".
+// A zero value means to use a 12 point font size.
 type Params struct {
-	Width               int
-	Height              int
-	FontPath            string
-	BackgroundImagePath string
+	Width               int    // drawing area width
+	Height              int    // drawing area height
+	FontPath            string // font file path
+	BackgroundImagePath string // background image file path
 	FontSize            float64
-	BackgroundColor     color.RGBA
-	TextColor           color.RGBA
-	TextPosVertical     int
-	TextPosHorizontal   int
+	BackgroundColor     color.RGBA // background color
+	TextColor           color.RGBA // text color
+	TextPosVertical     int        // right top
+	TextPosHorizontal   int        // right top
 }
 
 // NewDrawer returns Drawer interface
@@ -276,6 +280,6 @@ func (d *drawer) calcTextWidth(fontSize float64, text string) (textWidth int) {
 
 func (d *drawer) calcTextsHeight(fontSize float64, text []string, c *freetype.Context) (textHeight int) {
 	lineHeight := int(c.PointToFixed(d.FontSize) >> 6)
-	textHeight = lineHeight * len(text)
+	textHeight = lineHeight * (len(text) - 1)
 	return
 }
